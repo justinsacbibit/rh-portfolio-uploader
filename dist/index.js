@@ -127,6 +127,7 @@ async function getOptionsForOptionPositions(optionPositions) {
 }
 
 async function getAndUploadPositions() {
+  console.log('Uploading');
   const stockPositions = await getStockPositions();
   const optionPositions = await getOptionPositions();
   const stockMarketData = await getMarketDataForStockPositions(stockPositions);
@@ -145,6 +146,7 @@ async function getAndUploadPositions() {
       options
     }
   });
+  console.log('Uploaded');
 }
 
 const oneHour = 1000 * 60 * 60;
@@ -152,4 +154,6 @@ const oneHour = 1000 * 60 * 60;
 setInterval(async () => {
   await getAndUploadPositions();
 }, oneHour);
+
+getAndUploadPositions();
 //# sourceMappingURL=index.js.map
