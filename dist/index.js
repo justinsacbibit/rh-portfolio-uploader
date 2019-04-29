@@ -149,11 +149,11 @@ async function getAndUploadPositions() {
   console.log('Uploaded');
 }
 
-const oneHour = 1000 * 60 * 60;
+const interval = 1000 * 60 * 10;
 
 setInterval(async () => {
   await getAndUploadPositions();
-}, oneHour);
+}, interval);
 
 getAndUploadPositions();
 //# sourceMappingURL=index.js.map
