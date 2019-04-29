@@ -146,5 +146,10 @@ async function getAndUploadPositions() {
     }
   });
 }
-getAndUploadPositions();
+
+const oneHour = 1000 * 60 * 60;
+
+setInterval(async () => {
+  await getAndUploadPositions();
+}, oneHour);
 //# sourceMappingURL=index.js.map
