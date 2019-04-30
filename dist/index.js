@@ -107,16 +107,26 @@ async function uploadPositions(body) {
 }
 
 async function getMarketDataForStockPositions(stockPositions) {
+  if (stockPositions.length === 0) {
+    return [];
+  }
   const instrumentUrls = stockPositions.map(stockPosition => stockPosition.instrument);
   return await getMarketData(instrumentUrls, 'stocks');
 }
 
 async function getMarketDataForOptionPositions(optionPositions) {
+  if (optionPositions.length === 0) {
+    return [];
+  }
   const optionUrls = optionPositions.map(optionPosition => optionPosition.option);
   return await getMarketData(optionUrls, 'options');
 }
 
 async function getOptionsForOptionPositions(optionPositions) {
+  if (optionPositions.length === 0) {
+    return [];
+  }
+
   const ids = optionPositions.map(optionPosition => {
     const matchArray = optionPosition.option.match(/instruments\/(.*)\//);
     if (!matchArray || matchArray.length !== 2) {
@@ -128,12 +138,15 @@ async function getOptionsForOptionPositions(optionPositions) {
 }
 
 async function getAndUploadPositions() {
-  console.log('Uploading');
+  console.log('Fetching positions');
   const stockPositions = await getStockPositions();
   const optionPositions = await getOptionPositions();
+  console.log('Fetching market data');
   const stockMarketData = await getMarketDataForStockPositions(stockPositions);
   const optionMarketData = await getMarketDataForOptionPositions(optionPositions);
+  console.log('Fetching metadata');
   const options = await getOptionsForOptionPositions(optionPositions);
+  console.log('Uploading');
   await uploadPositions({
     positions: {
       stocks: stockPositions,
@@ -152,14 +165,20 @@ async function getAndUploadPositions() {
 
 const interval = 1000 * 60 * 10;
 
-setInterval(async () => {
+async function wrappedGetAndUploadPositions() {
   try {
     await getAndUploadPositions();
   } catch (e) {
-    console.log(e);
-    throw e;
+    console.log(e.response.config.url);
+    if (e.response.data) {
+      console.log(e.response.data);
+    }
   }
+}
+
+setInterval(async () => {
+  await wrappedGetAndUploadPositions();
 }, interval);
 
-getAndUploadPositions();
+wrappedGetAndUploadPositions();
 //# sourceMappingURL=index.js.map
