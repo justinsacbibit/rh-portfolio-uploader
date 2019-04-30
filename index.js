@@ -240,25 +240,53 @@ async function getAndUploadPositions() {
 
 const interval = 1000 * 60 * 10;
 
-async function wrappedGetAndUploadPositions() {
+async function refreshTokens() {
+  let tokens: Tokens = await tokenFileManager.load();
+
   try {
-    let tokens = await tokenFileManager.load();
+    console.log('Refreshing tokens using stored tokens');
+    tokens = await getNewTokens(tokens);
+    console.log('Refreshed tokens');
+  } catch (e) {
+    console.log('Falling back to using env vars');
     if (process.env.ROBINHOOD_ACCESS_TOKEN) {
       console.log('Using access/bearer token from env var');
-      tokens.bearer = process.env.ROBINHOOD_ACCESS_TOKEN;
+      tokens.bearer = process.env.ROBINHOOD_ACCESS_TOKEN || '';
+    } else {
+      throw new Error('ROBINHOOD_ACCESS_TOKEN env var is not set')
     }
     if (process.env.ROBINHOOD_REFRESH_TOKEN) {
       console.log('Using refresh token from env var');
-      tokens.refresh = process.env.ROBINHOOD_REFRESH_TOKEN;
+      tokens.refresh = process.env.ROBINHOOD_REFRESH_TOKEN || '';
+    } else {
+      throw new Error('ROBINHOOD_REFRESH_TOKEN env var is not set')
     }
 
     console.log('Refreshing tokens');
     tokens = await getNewTokens(tokens);
     console.log('Refreshed tokens');
+  }
 
-    axios.defaults.headers.common['Authorization'] = `Bearer ${tokens.bearer}`;
-    await tokenFileManager.save(tokens);
+  axios.defaults.headers.common['Authorization'] = `Bearer ${tokens.bearer}`;
+  await tokenFileManager.save(tokens);
+}
 
+async function getNewTokens(tokens: Tokens): Promise<Tokens> {
+  const response = await axios.post('https://api.robinhood.com/oauth2/token/', {
+    client_id: 'c82SH0WZOsabOXGP2sxqcj34FxkvfnWRZBKlBjFS',
+    grant_type: 'refresh_token',
+    refresh_token: tokens.refresh,
+    scope: 'web_limited',
+  });
+  return {
+    bearer: response.data['access_token'],
+    refresh: response.data['refresh_token'],
+  };
+}
+
+async function main() {
+  try {
+    await refreshTokens();
     await getAndUploadPositions();
   } catch (e) {
     console.log('Caught error:');
@@ -276,23 +304,10 @@ async function wrappedGetAndUploadPositions() {
 }
 
 setInterval(async () => {
-  await wrappedGetAndUploadPositions();
+  await main();
 }, interval);
 
-async function getNewTokens(tokens: Tokens): Promise<Tokens> {
-  const response = await axios.post('https://api.robinhood.com/oauth2/token/', {
-    client_id: 'c82SH0WZOsabOXGP2sxqcj34FxkvfnWRZBKlBjFS',
-    grant_type: 'refresh_token',
-    refresh_token: tokens.refresh,
-    scope: 'web_limited',
-  });
-  return {
-    bearer: response.data['access_token'],
-    refresh: response.data['refresh_token'],
-  };
-}
-
 (async function() {
-  await wrappedGetAndUploadPositions();
+  await main();
 })();
 
