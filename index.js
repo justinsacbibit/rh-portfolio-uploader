@@ -11,11 +11,12 @@ function checkEnvironmentVariables(environmentVariables) {
   }
 }
 
-checkEnvironmentVariables(['ROBINHOOD_TOKEN', 'UPLOAD_ENDPOINT']);
-const ROBINHOOD_TOKEN = process.env.ROBINHOOD_TOKEN || '';
+checkEnvironmentVariables(['ROBINHOOD_ACCESS_TOKEN', 'UPLOAD_ENDPOINT']);
+const ROBINHOOD_ACCESS_TOKEN = process.env.ROBINHOOD_ACCESS_TOKEN || '';
+const ROBINHOOD_REFRESH_TOKEN = process.env.ROBINHOOD_REFRESH_TOKEN || '';
 const UPLOAD_ENDPOINT = process.env.UPLOAD_ENDPOINT || '';
 
-axios.defaults.headers.common['Authorization'] = `Bearer ${ROBINHOOD_TOKEN}`;
+axios.defaults.headers.common['Authorization'] = `Bearer ${ROBINHOOD_ACCESS_TOKEN}`;
 
 type StockPosition = {
   account: string,
@@ -204,7 +205,12 @@ async function getAndUploadPositions() {
 const interval = 1000 * 60 * 10;
 
 setInterval(async () => {
-  await getAndUploadPositions();
+  try {
+    await getAndUploadPositions();
+  } catch (e) {
+    console.log(e);
+    throw e;
+  }
 }, interval);
 
 getAndUploadPositions();
