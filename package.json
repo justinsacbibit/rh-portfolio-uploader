@@ -4,7 +4,9 @@
   "main": "index.js",
   "license": "MIT",
   "dependencies": {
-    "axios": "^0.18.0"
+    "async-lock": "^1.2.0",
+    "axios": "^0.18.0",
+    "mz": "^2.7.0"
   },
   "devDependencies": {
     "babel-cli": "^6.26.0",

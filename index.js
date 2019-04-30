@@ -1,5 +1,15 @@
 // @flow
 const axios = require('axios');
+const {jsonFileManager} = require('./JsonFileManager');
+
+type Tokens = {
+  bearer: string,
+  refresh: string,
+};
+const tokenFileManager = new jsonFileManager('tokens', {
+  bearer: null,
+  refresh: null,
+});
 
 function checkEnvironmentVariables(environmentVariables) {
   for (let environmentVariable of environmentVariables) {
@@ -11,12 +21,12 @@ function checkEnvironmentVariables(environmentVariables) {
   }
 }
 
-checkEnvironmentVariables(['ROBINHOOD_ACCESS_TOKEN', 'UPLOAD_ENDPOINT']);
-const ROBINHOOD_ACCESS_TOKEN = process.env.ROBINHOOD_ACCESS_TOKEN || '';
-const ROBINHOOD_REFRESH_TOKEN = process.env.ROBINHOOD_REFRESH_TOKEN || '';
+checkEnvironmentVariables(['UPLOAD_ENDPOINT']);
+
 const UPLOAD_ENDPOINT = process.env.UPLOAD_ENDPOINT || '';
 
-axios.defaults.headers.common['Authorization'] = `Bearer ${ROBINHOOD_ACCESS_TOKEN}`;
+const ROBINHOOD_CLIENT_ID = 'c82SH0WZOsabOXGP2sxqcj34FxkvfnWRZBKlBjFS';
+
 
 type StockPosition = {
   account: string,
@@ -146,8 +156,21 @@ async function getOptions(ids: string[]): Promise<Option[]> {
   return response.data['results'].map(decodeOption);
 }
 
+type UploadPositionsRequestBody = {
+  positions: {
+    stocks: StockPosition[],
+    options: OptionPosition[],
+  },
+  marketData: {
+    stocks: InstrumentMarketData[],
+    options: OptionMarketData[],
+  },
+  metadata: {
+    options: Option[],
+  },
+};
 
-async function uploadPositions(body) {
+async function uploadPositions(body: UploadPositionsRequestBody) {
   try {
     return await axios.post(UPLOAD_ENDPOINT, body);
   } catch (e) {
@@ -219,11 +242,35 @@ const interval = 1000 * 60 * 10;
 
 async function wrappedGetAndUploadPositions() {
   try {
+    let tokens = await tokenFileManager.load();
+    if (process.env.ROBINHOOD_ACCESS_TOKEN) {
+      console.log('Using access/bearer token from env var');
+      tokens.bearer = process.env.ROBINHOOD_ACCESS_TOKEN;
+    }
+    if (process.env.ROBINHOOD_REFRESH_TOKEN) {
+      console.log('Using refresh token from env var');
+      tokens.refresh = process.env.ROBINHOOD_REFRESH_TOKEN;
+    }
+
+    console.log('Refreshing tokens');
+    tokens = await getNewTokens(tokens);
+    console.log('Refreshed tokens');
+
+    axios.defaults.headers.common['Authorization'] = `Bearer ${tokens.bearer}`;
+    await tokenFileManager.save(tokens);
+
     await getAndUploadPositions();
   } catch (e) {
-    console.log(e.response.config.url);
-    if (e.response.data) {
-      console.log(e.response.data);
+    console.log('Caught error:');
+    if (e.response) {
+      if (e.response.config && e.response.config.url) {
+        console.log(e.response.config.url);
+      }
+      if (e.response.data) {
+        console.log(e.response.data);
+      }
+    } else {
+      console.log(e);
     }
   }
 }
@@ -232,4 +279,20 @@ setInterval(async () => {
   await wrappedGetAndUploadPositions();
 }, interval);
 
-wrappedGetAndUploadPositions();
+async function getNewTokens(tokens: Tokens): Promise<Tokens> {
+  const response = await axios.post('https://api.robinhood.com/oauth2/token/', {
+    client_id: 'c82SH0WZOsabOXGP2sxqcj34FxkvfnWRZBKlBjFS',
+    grant_type: 'refresh_token',
+    refresh_token: tokens.refresh,
+    scope: 'web_limited',
+  });
+  return {
+    bearer: response.data['access_token'],
+    refresh: response.data['refresh_token'],
+  };
+}
+
+(async function() {
+  await wrappedGetAndUploadPositions();
+})();
+
