@@ -206,8 +206,8 @@ async function getNewTokens(tokens) {
     client_id: 'c82SH0WZOsabOXGP2sxqcj34FxkvfnWRZBKlBjFS',
     device_token: '7bb909cd-0cce-44f4-a4ac-b6868013c756',
     grant_type: 'refresh_token',
-    refresh_token: tokens.refresh,
-    scope: 'web_limited'
+    refresh_token: tokens.refresh
+    // scope: 'web_limited',
   });
   return {
     bearer: response.data['access_token'],
